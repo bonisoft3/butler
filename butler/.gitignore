@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+coverage/
+
+# Logs
+logs/
+*.log
+
+# Python virtual environment
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# WhatsApp Web.js
+.wwebjs_cache/
+.wwebjs_auth/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Editor Backups / Temporary Files
+*~
+*.un~
+*.bkp
+
+# WhatsApp session data
+whatsapp-session-data/
+whatsapp-mcp/.puppeteer_ws/

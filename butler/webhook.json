@@ -1,0 +1,7 @@
+{
+  "url": "http://webhook/webhook",
+  "filters": {
+    "allowPrivate": true,
+    "allowGroup": true
+  }
+}

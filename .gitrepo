@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/andrepaim/whatsapp-butler.git
+	branch = master
+	commit = 3f713d7c5d46e17cf597e237be84907f61963f71
+	parent = d5c0d4d941b61af29a4b86386923f17a25f68e84
+	method = merge
+	cmdver = 0.4.9

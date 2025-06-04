@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/andrepaim/wweb-mcp.git
+	branch = main
+	commit = e01866cd78db94de3ebc7cd219b434baadbe42d3
+	parent = 9feb5c8fd5a3ac296f0445dcffa9b67d4a7010cd
+	method = merge
+	cmdver = 0.4.9

@@ -70,18 +70,31 @@ mkdir -p whatsapp-session-data
 sudo chown -R $(id -u):$(id -g) whatsapp-session-data
 cp webhook.json ./whatsapp-session-data
 
-# Step 2: Start whatsapp-api service
+# Step 2: Start WhatsApp API service to generate session data
 print_message "\nStep 2: Starting WhatsApp API service..." "$YELLOW"
-print_message "Please wait for the QR code to appear..." "$GREEN"
 print_message "🤖 The Butler is getting ready to connect..." "$GREEN"
-docker-compose up whatsapp-api
+print_message "Waiting for WhatsApp API to be ready..." "$YELLOW"
+docker-compose up -d --build whatsapp-api
+
+timeout=60
+interval=2
+elapsed=0
+# Loop waits until "WhatsApp Web Client API started successfully" appears in the logs
+while ! docker compose logs whatsapp-api 2>/dev/null | grep -q "WhatsApp Web Client API started successfully"; do
+  if [ "$elapsed" -ge "$timeout" ]; then
+    print_message "Timeout reached waiting for WhatsApp API to be ready." "$RED"
+    exit 1
+  fi
+  sleep "$interval"
+  elapsed=$((elapsed + interval))
+done
 
 # Step 3: Extract API key from logs
 print_message "\nStep 3: Extracting API key..." "$YELLOW"
-API_KEY=$(docker-compose logs whatsapp-api 2>/dev/null | grep "WhatsApp API key:" | tail -n1 | sed -E 's/\x1B\[[0-9;]*[mK]//g' | awk '{print $NF}')
+API_KEY=$(cat ./whatsapp-session-data/api_key.txt)
 
 if [ -z "$API_KEY" ]; then
-    print_message "Error: Could not find API key in logs" "$RED"
+    print_message "Error: Could not find API key in session data" "$RED"
     exit 1
 fi
 
@@ -99,7 +112,8 @@ docker-compose down
 # Step 5: Start all services
 print_message "\nStep 5: Starting all services..." "$YELLOW"
 print_message "🤖 The Butler is ready to serve!" "$GREEN"
-docker-compose up -d
+print_message "Please wait for the QR code to appear..." "$GREEN"
+docker-compose up
 
 print_message "\nSetup completed successfully!" "$GREEN"
 print_message "You can check the logs with: docker-compose logs -f" "$YELLOW"

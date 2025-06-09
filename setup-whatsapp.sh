@@ -80,7 +80,7 @@ timeout=60
 interval=2
 elapsed=0
 # Loop waits until "WhatsApp Web Client API started successfully" appears in the logs
-while ! docker compose logs whatsapp-api 2>/dev/null | grep -q "WhatsApp Web Client API started successfully"; do
+while ! docker-compose logs whatsapp-api 2>/dev/null | grep -q "WhatsApp Web Client API started successfully"; do
   if [ "$elapsed" -ge "$timeout" ]; then
     print_message "Timeout reached waiting for WhatsApp API to be ready." "$RED"
     exit 1

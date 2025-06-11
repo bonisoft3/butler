@@ -4,7 +4,9 @@ import logger from './logger';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
-
+import qrcodepng from 'qrcode';
+import { createCanvas } from 'canvas';
+import express, { Request, Response } from 'express';
 // Configuration interface
 export interface WhatsAppConfig {
   authDataPath?: string;
@@ -77,11 +79,38 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
   });
 
   // Generate QR code when needed
-  client.on('qr', (qr: string) => {
-    // Display QR code in terminal
-    qrcode.generate(qr, { small: true }, qrcode => {
-      logger.info(`QR code generated. Scan it with your phone to log in.\n${qrcode}`);
+  let qrCodeServerStarted = false;
+
+  client.on('qr', async (qr: string) => {
+    qrcode.generate(qr, { small: true });
+
+    const canvas = createCanvas(300, 300);
+    const ctx = canvas.getContext('2d');
+    await qrcodepng.toCanvas(canvas, qr);
+
+    const buffer = canvas.toBuffer('image/png');
+    const imagePath = path.join(__dirname, 'qrcode.png');
+    fs.writeFileSync(imagePath, buffer);
+
+
+    if (qrCodeServerStarted) return;
+
+    const app = express();
+    const PORT = 3005;
+
+    app.get('/qrcode', (_req: Request, res: Response) => {
+      if (fs.existsSync(imagePath)) {
+                res.sendFile(path.resolve(imagePath));
+            } else {
+                res.status(404).send('QR code not found');
+            }
+      });
+
+    app.listen(PORT, () => {
+      console.log(`QR code server at http://localhost:${PORT}/qrcode`);
     });
+
+    qrCodeServerStarted = true;
   });
 
   // Handle ready event

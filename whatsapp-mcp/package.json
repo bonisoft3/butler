@@ -27,8 +27,10 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
     "axios": "^1.8.3",
+    "canvas": "^3.1.0",
     "express": "^5.0.1",
     "mime-types": "^2.1.35",
+    "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "^1.28.0",
     "winston": "^3.17.0",
@@ -39,6 +41,7 @@
     "@types/jest": "^29.5.14",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^20.17.28",
+    "@types/qrcode": "^1.5.5",
     "@types/qrcode-terminal": "^0.12.2",
     "@types/supertest": "^6.0.2",
     "@types/yargs": "^17.0.33",

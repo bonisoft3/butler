@@ -13,6 +13,7 @@ services:
       - ./whatsapp-session-data:/project/session-data
     ports:
       - "3001:3001"
+      - "3005:3005"
     healthcheck:
       test: ["CMD-SHELL", "curl -f -H \"Authorization: Bearer ${WHATSAPP_API_KEY}\" http://localhost:3001/api/status || exit 1"]
       interval: 60s
@@ -41,7 +42,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-  
+
   webhook:
     build:
       context: ./agent

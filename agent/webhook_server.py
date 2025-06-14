@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 import asyncio
 import logging
 from typing import Dict, Any
@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     logger.info("Agent and runner resources closed.")
 
 app = FastAPI(title="WhatsApp Butler Webhook", lifespan=lifespan)
-
+app.state.is_connected = False
 async def send_message_to_whatsapp(response: str, chat_id: str):
     """
     Send a message to WhatsApp
@@ -40,7 +40,7 @@ async def send_message_to_whatsapp(response: str, chat_id: str):
     """
     # Send the message to the WHATSAPP_API_URL
     async with httpx.AsyncClient() as client:
-        await client.post(f"{WHATSAPP_API_URL}/send", 
+        await client.post(f"{WHATSAPP_API_URL}/send",
                           headers={"Authorization": f"Bearer {WHATSAPP_API_KEY}"},
                           json={"message": response, "number": chat_id})
     logger.info(f"Message sent to WhatsApp: {response} to {chat_id}")
@@ -48,12 +48,12 @@ async def send_message_to_whatsapp(response: str, chat_id: str):
 async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
     """
     Process incoming WhatsApp message and call agent
-    
+
     Args:
         message (Dict[str, Any]): The incoming message data
-        
+
     Returns:
-        Dict[str, Any]: Response containing status and agent response   
+        Dict[str, Any]: Response containing status and agent response
     """
     try:
         # Extract message content
@@ -72,9 +72,9 @@ async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
                 status_code=200,
                 content={"status": "success"}
             )
-            
+
         logger.info(f"Processing message from {sender} in chat {chat_id}")
-        
+
         # Use runner from app.state
         runner = app.state.runner
         response = await call_agent_async(content, runner, chat_id, chat_id)
@@ -92,10 +92,10 @@ async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
 async def webhook(request: Request):
     """
     Webhook endpoint for receiving WhatsApp messages
-    
+
     Args:
         request (Request): The incoming request
-        
+
     Returns:
         JSONResponse: Response containing status and agent response
     """
@@ -118,22 +118,38 @@ async def webhook(request: Request):
 async def health_check():
     """
     Health check endpoint
-    
+
     Returns:
         Dict[str, str]: Health status
     """
     return {"status": "healthy"}
 
+@app.get("/connect", response_class=HTMLResponse)
+async def connect_page():
+    with open("pages/connect.html", "r") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
+
+@app.get("/status")
+async def get_status(request: Request):
+    return JSONResponse({"connected": request.app.state.is_connected})
+
+@app.post("/set-connected")
+async def set_connected(request: Request):
+    data = await request.json()
+    request.app.state.is_connected = data.get("connected", False)
+    return {"message": "Status updated"}
+
 if __name__ == "__main__":
     import uvicorn
-    
+
     # Get port from environment variable or use default
     port = int(os.getenv("WEBHOOK_PORT", "8000"))
-    
+
     # Run the server
     uvicorn.run(
         app,
         host="0.0.0.0",
         port=port,
         log_level="info"
-    ) 
+    )

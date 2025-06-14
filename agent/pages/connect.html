@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Connect to Butler</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+    #qr-image { margin-top: 20px; display: none; }
+    #connection-status { margin-top: 20px; font-weight: bold; font-size: 18px; }
+    button { padding: 10px 20px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Connect to Butler</h1>
+  <button onclick="showQRCode()">Connect to Butler</button>
+
+  <div id="qr-image">
+    <p>Scan the QR code below:</p>
+    <img id="qr-code-img" src="http://localhost:3005/qrcode" alt="QR Code" width="300" />
+  </div>
+
+  <div id="connection-status"></div>
+
+  <script>
+    let lastQRCode = null;
+    let qrCodeImg = document.getElementById('qr-code-img');
+
+    function showQRCode() {
+      document.getElementById('qr-image').style.display = 'block';
+      document.getElementById('connection-status').textContent = '⏳ Waiting for connection...';
+      startPolling();
+    }
+
+    async function getQRCode() {
+      try {
+        const response = await fetch('http://localhost:3005/qrcode', { cache: 'no-cache' });
+        const blob = await response.blob();
+        const newQRCode = URL.createObjectURL(blob);
+        if (newQRCode !== lastQRCode) {
+          qrCodeImg.src = newQRCode;
+          lastQRCode = newQRCode;
+        }
+      } catch (error) {
+        console.error('Error fetching QR code:', error);
+      }
+    }
+
+    async function checkConnectionStatus() {
+      try {
+        const response = await fetch('/status', { cache: 'no-cache' });
+        const data = await response.json();
+        if (data.connected) {
+          document.getElementById('connection-status').textContent = "✅ Connected to WhatsApp!";
+        } else {
+          document.getElementById('connection-status').textContent = "⏳ Waiting for connection...";
+        }
+      } catch (err) {
+        document.getElementById('connection-status').textContent = "⚠️ Error checking status.";
+        console.error(err);
+      }
+    }
+
+    function startPolling() {
+      getQRCode();
+      checkConnectionStatus();
+      setInterval(() => {
+        getQRCode();
+        checkConnectionStatus();
+      }, 1000);
+    }
+  </script>
+</body>
+</html>

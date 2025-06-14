@@ -115,7 +115,16 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
 
   // Handle ready event
   client.on('ready', async () => {
+    try {
+    await fetch('http://host.docker.internal:8000/set-connected', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connected: true }),
+    });
     logger.info('Client is ready!');
+  } catch (error) {
+    logger.error('Failed to notify connection to server:', error);
+  }
   });
 
   // Handle authenticated event
@@ -130,7 +139,16 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
 
   // Handle disconnected event
   client.on('disconnected', (reason: string) => {
+    try {
+    fetch('http://host.docker.internal:8000/set-connected', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connected: false }),
+    });
     logger.warn('Client was disconnected:', reason);
+  } catch (error) {
+    logger.error('Failed to disconnect:', error);
+  }
   });
 
   client.on('message_create', async (message: Message) => {

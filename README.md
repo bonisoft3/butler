@@ -14,22 +14,22 @@ WhatsApp Butler seamlessly integrates with your WhatsApp account, bringing the p
 You: /query Find John's message about the project deadline
 Butler: I found this message from John (Yesterday, 3:45 PM):
         "Don't forget our project deadline is this Friday at 5pm. Please submit all files to the shared folder."
-        
+
 You: /query Schedule a reminder about the project deadline for Friday at 4pm
 Butler: I've scheduled a reminder for Friday at 4:00 PM:
         "Reminder: Project deadline is at 5pm today. Please submit all files to the shared folder."
-        
+
 You: /query Summarize today's messages in the family group
 Butler: Summary of today's messages in "Family Group":
         - Mom announced she's making lasagna for dinner tonight
         - Dad will be home late, around 8pm
         - Your sister shared photos from her trip to the beach
         - Everyone discussed weekend plans (consensus is movie night on Saturday)
-        
+
 You: /query Set up a daily reminder to check the family group at 8pm
 Butler: I've set up a daily reminder for 8:00 PM:
         "Time to check the family group for any updates!"
-        
+
 You: /query What was the address of that restaurant Mark recommended?
 Butler: Mark shared this address on Tuesday:
         "Let's try that new Italian place, Bella Cucina at 123 Main Street. They have amazing pasta!"
@@ -48,19 +48,19 @@ WhatsApp Butler can help you:
 
 ### Technical Details
 
-1. **WhatsApp Web Connection**  
+1. **WhatsApp Web Connection**
    WhatsApp Butler connects to your WhatsApp account using the [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) library. On first setup, you'll need to scan a WhatsApp Web QR code to authenticate.
 
-2. **Browser-like Behavior via MCP Server**  
+2. **Browser-like Behavior via MCP Server**
    The system behaves like a browser running WhatsApp Web, powered by a fork of [wweb-mcp](https://github.com/pnizer/wweb-mcp) server, which manages the WhatsApp session and message operations.
 
-3. **Command Detection**  
+3. **Command Detection**
    Any message you send (in your personal chat with yourself) that starts with the prefix `/query` is automatically detected and forwarded to the AI agent.
 
-4. **Agent Querying and Actions**  
+4. **Agent Querying and Actions**
    The agent uses the WhatsApp MCP Server to search your WhatsApp chat history, answer your queries, and can also send messages on your behalf if you request it. It can schedule messages for future delivery using the system's cron service.
 
-5. **Private Answer Delivery**  
+5. **Private Answer Delivery**
    All answers from the agent are sent back to your personal chat with yourself, ensuring privacy and keeping your other conversations uncluttered.
 
 
@@ -104,6 +104,10 @@ chmod +x setup-whatsapp.sh
 make docker-compose-up
 ```
 
+5. Connect to whatsapp accessing browser:
+```bash
+localhost:8000/connect
+```
 ## Architecture
 
 The system consists of three main services:
@@ -114,13 +118,13 @@ The system consists of three main services:
 - Provides REST API endpoints
 - Maintains persistent session
 
-### WhatsApp MCP Service 
+### WhatsApp MCP Service
 - Provides Server-Sent Events (SSE)
 - Handles real-time message streaming
 - Connects to WhatsApp API service
 - Processes message events
 
-### Webhook Service 
+### Webhook Service
 - Processes incoming webhook requests
 - Integrates with Google's Gemini AI
 - Manages conversation context

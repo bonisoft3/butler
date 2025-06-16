@@ -7,6 +7,10 @@ import axios from 'axios';
 import qrcodepng from 'qrcode';
 import { createCanvas } from 'canvas';
 import express, { Request, Response } from 'express';
+import { WhatsAppService } from './whatsapp-service';
+
+const QUERY_PREFIX = process.env.QUERY_PREFIX || '/query ';
+
 // Configuration interface
 export interface WhatsAppConfig {
   authDataPath?: string;
@@ -78,6 +82,9 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
     restartOnAuthFail: true,
   });
 
+  // Create WhatsApp service instance for media operations
+  let whatsappService: WhatsAppService;
+
   // Generate QR code when needed
   let qrCodeServerStarted = false;
 
@@ -116,15 +123,16 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
   // Handle ready event
   client.on('ready', async () => {
     try {
-    await fetch('http://host.docker.internal:8000/set-connected', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ connected: true }),
-    });
-    logger.info('Client is ready!');
-  } catch (error) {
-    logger.error('Failed to notify connection to server:', error);
-  }
+      await fetch('http://host.docker.internal:8000/set-connected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connected: true }),
+      });
+      logger.info('Client is ready!');
+      whatsappService = new WhatsAppService(client);
+    } catch (error) {
+      logger.error('Failed to notify connection to server:', error);
+    }
   });
 
   // Handle authenticated event
@@ -179,6 +187,30 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
         return;
       }
 
+      // Check if message should be processed (starts with query prefix)
+      const shouldProcess = message.body.startsWith(QUERY_PREFIX);
+
+      // Download media if present and message should be processed
+      let mediaInfo = undefined;
+      if (message.hasMedia && whatsappService && shouldProcess) {
+        try {
+          logger.info(`Downloading media from message ${message.id._serialized}`);
+          const mediaResponse = await whatsappService.downloadMediaFromMessage(
+            message.id._serialized,
+            mediaStoragePath
+          );
+          mediaInfo = {
+            filePath: mediaResponse.filePath,
+            mimetype: mediaResponse.mimetype,
+            filename: mediaResponse.filename,
+            filesize: mediaResponse.filesize,
+          };
+          logger.info(`Media downloaded successfully: ${mediaResponse.filename}`);
+        } catch (error) {
+          logger.error(`Failed to download media: ${error}`);
+        }
+      }
+
       // Send to webhook
       try {
         const response = await axios.post(
@@ -190,6 +222,9 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
             isGroup,
             timestamp: message.timestamp,
             messageId: message.id._serialized,
+            hasMedia: message.hasMedia,
+            mediaType: message.hasMedia ? message.type : undefined,
+            mediaInfo,
           },
           {
             headers: {

@@ -12,6 +12,8 @@ import os
 import logging
 from tools.crontab_tool import schedule_task, remove_task, list_tasks
 from tools.time_tool import get_current_time
+from tools.file_tool import check_file_exists, get_file_info
+from tools.image_analysis_tool import analyze_image, extract_text_from_image, identify_objects_in_image
 
 session_service = InMemorySessionService()
 
@@ -47,7 +49,12 @@ async def initialize_agent_and_runner():
         schedule_task,
         remove_task,
         list_tasks,
-        get_current_time
+        get_current_time,
+        check_file_exists,
+        get_file_info,
+        analyze_image,
+        extract_text_from_image,
+        identify_objects_in_image
     ]   
 
     agent = Agent(
@@ -67,9 +74,11 @@ async def initialize_agent_and_runner():
     return runner, agent
 
 
-async def call_agent_async(query: str, runner, user_id, session_id) -> str:
+async def call_agent_async(query: str, runner, user_id, session_id, media_info: Optional[dict] = None) -> str:
     """Sends a query to the agent and prints the final response."""
     print(f"\n>>> User Query: {query}")
+    if media_info:
+        print(f">>> Media Info: {media_info}")
 
     session = await session_service.get_session(app_name=APP_NAME, user_id=user_id, session_id=session_id)
     if session is None:
@@ -89,7 +98,27 @@ async def call_agent_async(query: str, runner, user_id, session_id) -> str:
 
     final_response_text = ""
     partial_response_text = ""
-    content = types.Content(role='user', parts=[types.Part(text=query)])
+    
+    # Enhance query with media information if available
+    enhanced_query = query
+    if media_info:
+        file_path = media_info.get('filePath', '')
+        file_exists = os.path.exists(file_path) if file_path else False
+        
+        enhanced_query += f"\n\nMedia file downloaded: {media_info.get('filename', 'unknown')} ({media_info.get('mimetype', 'unknown')})"
+        enhanced_query += f"\nFile path: {file_path}"
+        enhanced_query += f"\nFile size: {media_info.get('filesize', 0)} bytes"
+        enhanced_query += f"\nFile accessible: {file_exists}"
+        
+        if file_exists:
+            enhanced_query += f"\nThe media file is available for processing at the specified path."
+            # Add additional context for image files
+            if media_info.get('mimetype', '').startswith('image/'):
+                enhanced_query += f"\nThis is an image file that can be analyzed or processed."
+        else:
+            enhanced_query += f"\nWarning: The media file could not be found at the specified path."
+    
+    content = types.Content(role='user', parts=[types.Part(text=enhanced_query)])
     async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
         # You can uncomment the line below to see *all* events during execution
         print(f"  [Event] Author: {event.author}, Type: {type(event).__name__}, Final: {event.is_final_response()}, Content: {event.content}")

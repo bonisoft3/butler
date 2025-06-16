@@ -60,6 +60,22 @@ async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
         content = message.get("message", "")
         sender = message.get("name", "")
         chat_id = message.get("from", "")
+        has_media = message.get("hasMedia", False)
+        media_type = message.get("mediaType", None)
+        media_info = message.get("mediaInfo", None)
+        
+        # If there's no text content but there's media, inform about the media
+        if not content and has_media:
+            if media_info:
+                content = f"[Media downloaded: {media_type} - {media_info.get('filename', 'unknown')}]"
+            else:
+                content = f"[Media: {media_type}]"
+        elif content and has_media:
+            if media_info:
+                content = f"{content} [Media downloaded: {media_type} - {media_info.get('filename', 'unknown')}]"
+            else:
+                content = f"{content} [Media attached: {media_type}]"
+            
         if not content:
             return JSONResponse(
                 status_code=200,
@@ -77,7 +93,7 @@ async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
 
         # Use runner from app.state
         runner = app.state.runner
-        response = await call_agent_async(content, runner, chat_id, chat_id)
+        response = await call_agent_async(content, runner, chat_id, chat_id, media_info)
         logger.info(f"Agent response: {response}")
         await send_message_to_whatsapp(response, chat_id)
         return JSONResponse(

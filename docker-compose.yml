@@ -61,6 +61,7 @@ services:
       - QUERY_PREFIX=/query
     volumes:
       - ./agent:/app
+      - ./whatsapp-session-data:/project/session-data
     depends_on:
       whatsapp-mcp:
         condition: service_healthy

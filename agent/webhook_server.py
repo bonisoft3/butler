@@ -67,14 +67,34 @@ async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
         # If there's no text content but there's media, inform about the media
         if not content and has_media:
             if media_info:
-                content = f"[Media downloaded: {media_type} - {media_info.get('filename', 'unknown')}]"
+                if media_type == 'audio':
+                    content = f"[Audio received: {media_info.get('filename', 'unknown')}]"
+                elif media_type == 'image':
+                    content = f"[Image received: {media_info.get('filename', 'unknown')}]"
+                else:
+                    content = f"[Media downloaded: {media_type} - {media_info.get('filename', 'unknown')}]"
             else:
-                content = f"[Media: {media_type}]"
+                if media_type == 'audio':
+                    content = "[Audio received]"
+                elif media_type == 'image':
+                    content = "[Image received]"
+                else:
+                    content = f"[Media: {media_type}]"
         elif content and has_media:
             if media_info:
-                content = f"{content} [Media downloaded: {media_type} - {media_info.get('filename', 'unknown')}]"
+                if media_type == 'audio':
+                    content = f"{content} [Audio attached: {media_info.get('filename', 'unknown')}]"
+                elif media_type == 'image':
+                    content = f"{content} [Image attached: {media_info.get('filename', 'unknown')}]"
+                else:
+                    content = f"{content} [Media attached: {media_type} - {media_info.get('filename', 'unknown')}]"
             else:
-                content = f"{content} [Media attached: {media_type}]"
+                if media_type == 'audio':
+                    content = f"{content} [Audio attached]"
+                elif media_type == 'image':
+                    content = f"{content} [Image attached]"
+                else:
+                    content = f"{content} [Media attached: {media_type}]"
             
         if not content:
             return JSONResponse(
@@ -82,6 +102,18 @@ async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
                 content={"status": "success"}
             )
 
+        # Process media files to store context, even without query prefix
+        if has_media and media_info and not content.startswith(QUERY_PREFIX):
+            logger.info(f"Storing media context for {sender} in chat {chat_id}")
+            # Store media context by calling agent silently (no response sent)
+            runner = app.state.runner
+            response = await call_agent_async(f"[MEDIA_CONTEXT_ONLY] {content}", runner, chat_id, chat_id, media_info)
+            # Don't send response to WhatsApp for context-only storage
+            return JSONResponse(
+                status_code=200,
+                content={"status": "success"}
+            )
+        
         # Skip if the message is not from the bot
         if not content.startswith(QUERY_PREFIX):
             return JSONResponse(

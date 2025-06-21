@@ -138,6 +138,11 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
   // Handle authenticated event
   client.on('authenticated', () => {
     logger.info('Authentication successful!');
+    // Initialize WhatsAppService on authentication if not already initialized
+    if (!whatsappService) {
+      whatsappService = new WhatsAppService(client);
+      logger.info('WhatsAppService initialized on authentication');
+    }
   });
 
   // Handle auth failure event
@@ -190,9 +195,9 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
       // Check if message should be processed (starts with query prefix)
       const shouldProcess = message.body.startsWith(QUERY_PREFIX);
 
-      // Download media if present and message should be processed
+      // Download media if present - always download all media types
       let mediaInfo = undefined;
-      if (message.hasMedia && whatsappService && shouldProcess) {
+      if (message.hasMedia && whatsappService) {
         try {
           logger.info(`Downloading media from message ${message.id._serialized}`);
           const mediaResponse = await whatsappService.downloadMediaFromMessage(

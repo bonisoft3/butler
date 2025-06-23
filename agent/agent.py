@@ -5,7 +5,7 @@ from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
 from google.genai import types
 from google.adk.events import Event, EventActions
-from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, SseServerParams
+from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, SseConnectionParams
 from typing import Optional
 import time
 import os
@@ -45,7 +45,7 @@ async def initialize_agent_and_runner():
 
     tools = [
         MCPToolset(
-            connection_params=SseServerParams(url=mcp_url)
+            connection_params=SseConnectionParams(url=mcp_url)
         ),
         schedule_task,
         remove_task,

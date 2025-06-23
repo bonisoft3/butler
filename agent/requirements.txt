@@ -1,7 +1,7 @@
-google-adk>=1.0.0
-litellm>=1.0.0
-python-dotenv>=1.0.0
-requests>=2.31.0
-python-crontab
-google-generativeai
-pillow
+google-adk==1.4.1
+litellm==1.73.0
+python-dotenv==1.1.0
+requests==2.32.4
+python-crontab==3.2.0
+google-generativeai==0.8.5
+pillow==11.2.1

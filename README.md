@@ -11,26 +11,26 @@ Imagine having a personal WhatsApp assistant that understands your needs, finds 
 WhatsApp Butler seamlessly integrates with your WhatsApp account, bringing the power of AI directly to your conversations. Just like having a personal butler at your service, it's always ready to assist you. All responses from the butler will be delivered in your own personal chat with yourself, keeping your interactions private and organized:
 
 ```
-You: /query Find John's message about the project deadline
+You: Find John's message about the project deadline
 Butler: I found this message from John (Yesterday, 3:45 PM):
         "Don't forget our project deadline is this Friday at 5pm. Please submit all files to the shared folder."
 
-You: /query Schedule a reminder about the project deadline for Friday at 4pm
+You: Schedule a reminder about the project deadline for Friday at 4pm
 Butler: I've scheduled a reminder for Friday at 4:00 PM:
         "Reminder: Project deadline is at 5pm today. Please submit all files to the shared folder."
 
-You: /query Summarize today's messages in the family group
+You: Summarize today's messages in the family group
 Butler: Summary of today's messages in "Family Group":
         - Mom announced she's making lasagna for dinner tonight
         - Dad will be home late, around 8pm
         - Your sister shared photos from her trip to the beach
         - Everyone discussed weekend plans (consensus is movie night on Saturday)
 
-You: /query Set up a daily reminder to check the family group at 8pm
+You: Set up a daily reminder to check the family group at 8pm
 Butler: I've set up a daily reminder for 8:00 PM:
         "Time to check the family group for any updates!"
 
-You: /query What was the address of that restaurant Mark recommended?
+You: What was the address of that restaurant Mark recommended?
 Butler: Mark shared this address on Tuesday:
         "Let's try that new Italian place, Bella Cucina at 123 Main Street. They have amazing pasta!"
 ```
@@ -55,7 +55,7 @@ WhatsApp Butler can help you:
    The system behaves like a browser running WhatsApp Web, powered by a fork of [wweb-mcp](https://github.com/pnizer/wweb-mcp) server, which manages the WhatsApp session and message operations.
 
 3. **Command Detection**
-   Any message you send (in your personal chat with yourself) that starts with the prefix `/query` is automatically detected and forwarded to the AI agent.
+   Any message you send (in your personal chat with yourself) is automatically detected and forwarded to the AI agent.
 
 4. **Agent Querying and Actions**
    The agent uses the WhatsApp MCP Server to search your WhatsApp chat history, answer your queries, and can also send messages on your behalf if you request it. It can schedule messages for future delivery using the system's cron service.
@@ -87,7 +87,7 @@ cd whatsapp-watchdog
 ```bash
 # WhatsApp API Configuration
 WHATSAPP_API_KEY=your_whatsapp_api_key
-QUERY_PREFIX=/query  # Optional: customize the command prefix
+QUERY_PREFIX="🤖 butler:"  # Optional: customize the command prefix
 GOOGLE_API_KEY=your_google_api_key
 GOOGLE_GENAI_USE_VERTEXAI=false  # Set to true if using Vertex AI
 AGENT_MODEL=your_agent_model_name (e.g. gemini-2.0-flash)
@@ -138,7 +138,7 @@ The system consists of three main services:
 |----------|-------------|---------|
 | WHATSAPP_API_KEY | API key for WhatsApp services | Required |
 | WHATSAPP_API_URL | URL for WhatsApp API service | http://localhost:3000/api |
-| QUERY_PREFIX | Command prefix for AI interaction | /query |
+| QUERY_PREFIX | Prefix added to bot responses to differentiate from user messages | 🤖 butler: |
 | GOOGLE_API_KEY | API key for Google Gemini AI | Required |
 | GOOGLE_GENAI_USE_VERTEXAI | Use Vertex AI instead of Gemini API | false |
 | AGENT_MODEL | Gemini AI model to use | gemini-2.0-flash |

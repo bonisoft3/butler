@@ -9,7 +9,7 @@ import { createCanvas } from 'canvas';
 import express, { Request, Response } from 'express';
 import { WhatsAppService } from './whatsapp-service';
 
-const QUERY_PREFIX = process.env.QUERY_PREFIX || '/query ';
+const QUERY_PREFIX = process.env.QUERY_PREFIX || '🤖 *butler:*';
 
 // Configuration interface
 export interface WhatsAppConfig {
@@ -26,6 +26,7 @@ interface WebhookConfig {
     allowedNumbers?: string[];
     allowPrivate?: boolean;
     allowGroups?: boolean;
+    allowSelfChat?: boolean;
   };
 }
 
@@ -35,6 +36,40 @@ function loadWebhookConfig(dataPath: string): WebhookConfig | undefined {
     return undefined;
   }
   return JSON.parse(fs.readFileSync(webhookConfigPath, 'utf8'));
+}
+
+function shouldSkipMessageByFilters(
+  isGroup: boolean,
+  isSelfChat: boolean,
+  contactNumber: string,
+  filters?: WebhookConfig['filters']
+): boolean {
+  if (!filters) return false;
+
+  if (isGroup && filters.allowGroups === false) {
+    logger.debug('Skipping: message from group and allowGroups=false');
+    return true;
+  }
+
+  if (!isGroup && !isSelfChat && filters.allowPrivate === false) {
+    logger.debug('Skipping: message from private chat and allowPrivate=false');
+    return true;
+  }
+
+  if (isSelfChat && filters.allowSelfChat === false) {
+    logger.debug('Skipping: message from self chat and allowSelfChat=false');
+    return true;
+  }
+
+  if (
+    filters.allowedNumbers?.length &&
+    !filters.allowedNumbers.includes(contactNumber)
+  ) {
+    logger.debug(`Skipping: contact ${contactNumber} not in allowedNumbers`);
+    return true;
+  }
+
+  return false;
 }
 
 export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
@@ -164,36 +199,28 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
   }
   });
 
+  // Handle messages sent by this client (outgoing messages)
   client.on('message_create', async (message: Message) => {
     const contact = await message.getContact();
-    if (message.id.fromMe) {
-      logger.debug(`Own message: ${contact.pushname} (${contact.number}): ${message.body}`);
-      client.emit('message', message);
+    logger.debug(`Own message: ${contact.pushname} (${contact.number}): ${message.body}`);
+
+    if (!message.id.fromMe) return;
+
+    // Ignore Butler messages
+    if (message.body.startsWith(QUERY_PREFIX)) {
+      logger.debug(`Skipping: Ignoring Butler message with prefix '${QUERY_PREFIX}`);
+      return;
     }
-  });
 
-  // Handle incoming messages
-  client.on('message', async (message: Message) => {
-    const contact = await message.getContact();
-    logger.debug(`${contact.pushname} (${contact.number}): ${message.body}`);
-
-    // Process webhook if configured and if the message is from the bot
     if (webhookConfig) {
       // Check filters
-      const isGroup = message.from.includes('@g.us');
+      const isGroup = message.to.includes('@g.us');
+      const isSelfChat = !isGroup && message.to.split('@')[0] === client.info.wid.user;
 
       // Skip if filters don't match
-      if (
-        (isGroup && webhookConfig.filters?.allowGroups === false) ||
-        (!isGroup && webhookConfig.filters?.allowPrivate === false) ||
-        (webhookConfig.filters?.allowedNumbers?.length &&
-          !webhookConfig.filters.allowedNumbers.includes(contact.number))
-      ) {
+      if (shouldSkipMessageByFilters(isGroup, isSelfChat, contact.number, webhookConfig.filters)) {
         return;
       }
-
-      // Check if message should be processed (starts with query prefix)
-      const shouldProcess = message.body.startsWith(QUERY_PREFIX);
 
       // Download media if present - always download all media types
       let mediaInfo = undefined;
@@ -224,12 +251,12 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
             from: contact.number,
             name: contact.pushname,
             message: message.body,
-            isGroup,
+            isGroup: isGroup,
             timestamp: message.timestamp,
             messageId: message.id._serialized,
             hasMedia: message.hasMedia,
             mediaType: message.hasMedia ? message.type : undefined,
-            mediaInfo,
+            mediaInfo: mediaInfo,
           },
           {
             headers: {
@@ -249,6 +276,12 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
       }
     }
   });
+
+  // Handle messages received from other users (incoming messages)
+  client.on('message', async (message: Message) => {
+    const contact = await message.getContact();
+    logger.debug(`${contact.pushname} (${contact.number}): ${message.body}`);
+  })
 
   return client;
 }

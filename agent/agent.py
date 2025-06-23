@@ -34,6 +34,7 @@ def load_agent_prompt():
 
 # Set up the model
 AGENT_MODEL = os.getenv("AGENT_MODEL", "gemini-2.0-flash")
+QUERY_PREFIX = os.getenv("QUERY_PREFIX", "🤖 *butler:*")
 
 
 async def initialize_agent_and_runner():
@@ -192,5 +193,6 @@ async def call_agent_async(query: str, runner, user_id, session_id, media_info: 
                 final_response_text = f"Agent escalated: {event.error_message or 'No specific message.'}"
             # Add more checks here if needed (e.g., specific error codes)
             break # Stop processing events once the final response is found
+    final_response_text = f"{QUERY_PREFIX}{'' if QUERY_PREFIX.endswith(' ') else ' '}{final_response_text}"
     logging.info(f"Final response text: {final_response_text}")
     return final_response_text

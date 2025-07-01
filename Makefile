@@ -1,3 +1,11 @@
+# Detect which docker compose command is available
+DOCKER_COMPOSE_CMD := $(shell command -v docker-compose 2>/dev/null)
+ifeq ($(DOCKER_COMPOSE_CMD),)
+    DOCKER_COMPOSE := docker compose
+else
+    DOCKER_COMPOSE := docker-compose
+endif
+
 # Default target
 .PHONY: all
 all: help
@@ -9,17 +17,18 @@ help:
 	@echo "  make up   - Run all services using Docker Compose"
 	@echo "  make down - Stop all services"
 	@echo "  make logs - View logs from all services"
-
+	@echo "Using: $(DOCKER_COMPOSE)"
 
 # Docker Compose commands
-.PHONY: docker-compose-up
+.PHONY: up
 up:
-	docker-compose up --build webhook whatsapp-api whatsapp-mcp
+	$(DOCKER_COMPOSE) up --build webhook whatsapp-api whatsapp-mcp
 
-.PHONY: docker-compose-down
+.PHONY: down
 down:
-	docker-compose down
+	$(DOCKER_COMPOSE) down
 
-.PHONY: docker-compose-logs
+.PHONY: logs
 logs:
-	docker-compose logs -f
+	$(DOCKER_COMPOSE) logs -f
+

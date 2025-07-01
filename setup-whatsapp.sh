@@ -16,18 +16,6 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to check if we have sudo access
-check_sudo() {
-    if ! command_exists sudo; then
-        print_message "Error: sudo is not installed" "$RED"
-        exit 1
-    fi
-    if ! sudo -v >/dev/null 2>&1; then
-        print_message "Error: No sudo access" "$RED"
-        exit 1
-    fi
-}
-
 # Function to update .env file
 update_env_file() {
     local key=$1
@@ -50,24 +38,23 @@ update_env_file() {
 }
 
 # Check if docker and docker-compose are installed
-if ! command_exists docker || ! command_exists docker-compose; then
-    print_message "Error: docker and docker-compose must be installed" "$RED"
-    exit 1
+if ! command_exists docker; then
+    print_message "Error: docker must be installed" "$RED"
+	exit 1
+elif ! command_exists docker-compose; then
+	docker-compose() {
+		docker compose "$@"
+	}
 fi
-
-# Check sudo access
-check_sudo
 
 # Step 1: Remove existing session data
 print_message "Step 1: Cleaning up existing session data..." "$YELLOW"
 if [ -d "whatsapp-session-data" ]; then
     print_message "Removing existing whatsapp-session-data directory..." "$YELLOW"
-    sudo rm -rf whatsapp-session-data
+    rm -rf whatsapp-session-data
 fi
 
-# Create directory with correct permissions
 mkdir -p whatsapp-session-data
-sudo chown -R $(id -u):$(id -g) whatsapp-session-data
 cp webhook.json ./whatsapp-session-data
 
 # Step 2: Start WhatsApp API service to generate session data
@@ -109,11 +96,6 @@ print_message ".env file updated successfully" "$GREEN"
 print_message "\nStep 4: Stopping services..." "$YELLOW"
 docker-compose down
 
-# Step 5: Start all services
-print_message "\nStep 5: Starting all services..." "$YELLOW"
-print_message "🤖 The Butler is ready to serve!" "$GREEN"
-print_message "Please wait for the QR code to appear..." "$GREEN"
-docker-compose up
-
 print_message "\nSetup completed successfully!" "$GREEN"
-print_message "You can check the logs with: docker-compose logs -f" "$YELLOW"
+print_message "Now you can startup Butler by running 'make up' and scan the QR code with your phone." "$YELLOW"
+

@@ -37,14 +37,13 @@ update_env_file() {
     fi
 }
 
-# Check if docker and docker-compose are installed
+# Check if docker and docker compose plugin are installed
 if ! command_exists docker; then
     print_message "Error: docker must be installed" "$RED"
 	exit 1
-elif ! command_exists docker-compose; then
-	docker-compose() {
-		docker compose "$@"
-	}
+elif ! command_exists docker compose; then
+    print_message "Error: docker compose plugin must be installed" "$RED"
+	exit 1
 fi
 
 # Step 1: Remove existing session data
@@ -61,13 +60,13 @@ cp webhook.json ./whatsapp-session-data
 print_message "\nStep 2: Starting WhatsApp API service..." "$YELLOW"
 print_message "🤖 The Butler is getting ready to connect..." "$GREEN"
 print_message "Waiting for WhatsApp API to be ready..." "$YELLOW"
-docker-compose up -d --build whatsapp-api
+docker compose up -d --build whatsapp-api
 
 timeout=60
 interval=2
 elapsed=0
 # Loop waits until "WhatsApp Web Client API started successfully" appears in the logs
-while ! docker-compose logs whatsapp-api 2>/dev/null | grep -q "WhatsApp Web Client API started successfully"; do
+while ! docker compose logs whatsapp-api 2>/dev/null | grep -q "WhatsApp Web Client API started successfully"; do
   if [ "$elapsed" -ge "$timeout" ]; then
     print_message "Timeout reached waiting for WhatsApp API to be ready." "$RED"
     exit 1
@@ -94,7 +93,7 @@ print_message ".env file updated successfully" "$GREEN"
 
 # Step 4: Stop the service
 print_message "\nStep 4: Stopping services..." "$YELLOW"
-docker-compose down
+docker compose down
 
 print_message "\nSetup completed successfully!" "$GREEN"
 print_message "Now you can startup Butler by running 'make up' and scan the QR code with your phone." "$YELLOW"

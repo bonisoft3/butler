@@ -84,17 +84,17 @@ async def call_agent_async(query: str, runner, user_id, session_id, media_info: 
     print(f"\n>>> User Query: {query}")
     if media_info:
         print(f">>> Media Info: {media_info}")
-    
+
     # Ensure session exists
     session = await session_service.get_session(app_name=APP_NAME, user_id=user_id, session_id=session_id)
     if session is None:
         session = await session_service.create_session(app_name=APP_NAME, user_id=user_id, session_id=session_id)
         logging.info(f"  [Session] Created new session for user {user_id} with session ID {session_id}.")
-    
+
     # If this is just for context storage, store media info and return
     if query.startswith("[MEDIA_CONTEXT_ONLY]") and media_info:
         logging.info(">>> Storing media context only, not running agent")
-        
+
         # Store media info in session
         state_changes = {
             "user_id": user_id,
@@ -114,12 +114,12 @@ async def call_agent_async(query: str, runner, user_id, session_id, media_info: 
 
     # Prepare state changes including media context
     state_changes = {"user_id": user_id}
-    
+
     # Store media information in session state for consecutive message processing
     if media_info:
         state_changes["last_media_info"] = media_info
         state_changes["last_media_timestamp"] = time.time()
-    
+
     actions_with_update = EventActions(state_delta=state_changes)
     system_event = Event(
     invocation_id="media_context_update" if media_info else "user_id_update",
@@ -131,16 +131,16 @@ async def call_agent_async(query: str, runner, user_id, session_id, media_info: 
 
     final_response_text = ""
     partial_response_text = ""
-    
+
     # Enhance query with media information if available
     enhanced_query = query
     current_media = media_info
-    
+
     # If no current media but there's a recent media in session, use it
     if not current_media:
         # Check recent events for media context
         events = session.events if hasattr(session, 'events') else []
-        
+
         for event in reversed(events[-10:]):  # Check last 10 events
             if hasattr(event, 'actions') and event.actions and hasattr(event.actions, 'state_delta'):
                 state_delta = event.actions.state_delta
@@ -148,26 +148,26 @@ async def call_agent_async(query: str, runner, user_id, session_id, media_info: 
                     last_media = state_delta["last_media_info"]
                     last_timestamp = state_delta.get("last_media_timestamp", 0)
                     current_time = time.time()
-                    
+
                     # Use last media if it was recent (within 5 minutes)
                     if last_media and (current_time - last_timestamp) < 300:
                         current_media = last_media
                         enhanced_query += f"\n\n[CONTEXT: Referencing recent media from previous message]"
                         break
-    
+
     if current_media:
         file_path = current_media.get('filePath', '')
         file_exists = os.path.exists(file_path) if file_path else False
         mimetype = current_media.get('mimetype', 'unknown')
         filename = current_media.get('filename', 'unknown')
-        
+
         enhanced_query += f"\n\nMedia Context:"
         enhanced_query += f"\n- File: {filename}"
         enhanced_query += f"\n- Type: {mimetype}"
         enhanced_query += f"\n- Path: {file_path}"
         enhanced_query += f"\n- Size: {current_media.get('filesize', 0)} bytes"
         enhanced_query += f"\n- Available: {file_exists}"
-        
+
         if file_exists:
             if mimetype.startswith('audio/'):
                 enhanced_query += f"\n\nAudio file ready for processing. Use transcribe_audio, analyze_audio_content, or extract_speech_from_audio with path: {file_path}"
@@ -175,7 +175,7 @@ async def call_agent_async(query: str, runner, user_id, session_id, media_info: 
                 enhanced_query += f"\n\nImage file ready for processing. Use analyze_image, extract_text_from_image, or identify_objects_in_image with path: {file_path}"
         else:
             enhanced_query += f"\n\nWarning: Media file not accessible at specified path."
-    
+
     content = types.Content(role='user', parts=[types.Part(text=enhanced_query)])
     async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
         # You can uncomment the line below to see *all* events during execution

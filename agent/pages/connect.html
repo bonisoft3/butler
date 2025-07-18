@@ -17,7 +17,7 @@
 
   <div id="qr-image">
     <p>Scan the QR code below:</p>
-    <img id="qr-code-img" src="http://localhost:3005/qrcode" alt="QR Code" width="300" />
+    <img id="qr-code-img" src="/qrcode" alt="QR Code" width="300" />
   </div>
 
   <div id="connection-status"></div>
@@ -34,7 +34,7 @@
 
     async function getQRCode() {
       try {
-        const response = await fetch('http://localhost:3005/qrcode', { cache: 'no-cache' });
+        const response = await fetch('/qrcode', { cache: 'no-cache' });
         const blob = await response.blob();
         const newQRCode = URL.createObjectURL(blob);
         if (newQRCode !== lastQRCode) {
@@ -67,7 +67,7 @@
       setInterval(() => {
         getQRCode();
         checkConnectionStatus();
-      }, 1000);
+      }, 4000);
     }
   </script>
 </body>

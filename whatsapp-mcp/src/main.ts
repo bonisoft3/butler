@@ -114,7 +114,7 @@ function createConfigurations(argv: ReturnType<typeof parseCommandLineArgs>): {
   const mcpConfig: McpConfig = {
     useApiClient: argv['mcp-mode'] === 'api',
     apiBaseUrl: argv['api-base-url'] as string,
-    apiKey: argv['api-key'] as string,
+    apiKey: argv['api-key'] === '$(WHATSAPP_API_KEY)' ? process.env.WHATSAPP_API_KEY || '' : argv['api-key'] as string,
     whatsappConfig: whatsAppConfig,
   };
 
@@ -178,6 +178,7 @@ async function getWhatsAppApiKey(whatsAppConfig: WhatsAppConfig): Promise<string
   if (!authDataPath) {
     throw new Error('The auth-data-path is required when using whatsapp-api mode');
   }
+
   const apiKeyPath = path.join(authDataPath, 'api_key.txt');
   if (!fs.existsSync(apiKeyPath)) {
     const apiKey = crypto.randomBytes(32).toString('hex');
@@ -186,18 +187,53 @@ async function getWhatsAppApiKey(whatsAppConfig: WhatsAppConfig): Promise<string
   }
   return fs.readFileSync(apiKeyPath, 'utf8');
 }
+const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
+
+async function saveApiKeyToSecretManager(apiKey: string) {
+  const client = new SecretManagerServiceClient();
+  const secretName = 'projects/646949889529/secrets/whatsapp-api-key';
+
+  try {
+    const [version] = await client.addSecretVersion({
+      parent: secretName,
+      payload: {
+        data: Buffer.from(apiKey, 'utf8'),
+      },
+    });
+    logger.info(`Updated WhatsApp API key in Secret Manager: ${version.name}`);
+  } catch (error) {
+    logger.error('Error saving API key to Secret Manager:', error);
+  }
+}
 
 async function startWhatsAppApiServer(whatsAppConfig: WhatsAppConfig, port: number): Promise<void> {
   logger.info('Starting WhatsApp Web REST API...');
+
   const client = createWhatsAppClient(whatsAppConfig);
-  await client.initialize();
+    try {
+    logger.info('Calling client.initialize()...');
+    await client.initialize().catch(_ => _);
+    logger.info('client.initialize() succeeded');
+  } catch (err) {
+    logger.error('client.initialize() failed:', err);
+  }
 
   const apiKey = await getWhatsAppApiKey(whatsAppConfig);
   logger.info(`WhatsApp API key: ${apiKey}`);
-
+  if (process.env.ENVIRONMENT && process.env.ENVIRONMENT === 'production'){
+    await saveApiKeyToSecretManager(apiKey);
+  }
   const app = express();
+  const imagePath = path.join(__dirname, 'qrcode.png');
   app.use(requestLogger);
   app.use(express.json());
+  app.get('/qrcode', (_req: Request, res: Response) => {
+    if (fs.existsSync(imagePath)) {
+              res.sendFile(path.resolve(imagePath));
+          } else {
+              res.status(404).send('QR code not found');
+          }
+    });
   app.use((req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader || authHeader !== `Bearer ${apiKey}`) {
@@ -230,7 +266,7 @@ async function startMcpServer(
   if (mode === 'standalone') {
     logger.info('Starting WhatsApp Web Client...');
     client = createWhatsAppClient(mcpConfig.whatsappConfig);
-    await client.initialize();
+    await client.initialize().catch(_ => _);
   }
 
   logger.info(`Starting MCP server in ${mode} mode...`);

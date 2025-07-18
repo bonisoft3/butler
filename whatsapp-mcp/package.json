@@ -32,9 +32,10 @@
     "mime-types": "^2.1.35",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
-    "whatsapp-web.js": "^1.28.0",
+    "whatsapp-web.js": "^1.28.0", 
     "winston": "^3.17.0",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+	"@google-cloud/secret-manager": "^6.0.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

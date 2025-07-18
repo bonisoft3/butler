@@ -1,0 +1,8 @@
+{
+  "url": "http://webhook:8080/webhook",
+  "filters": {
+    "allowPrivate": false,
+    "allowGroups": false,
+    "allowSelfChat": true
+  }
+}

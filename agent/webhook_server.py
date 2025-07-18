@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, Response
 import asyncio
 import logging
 from typing import Dict, Any
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # Get message prefix from environment variable or use default
 QUERY_PREFIX = os.getenv("QUERY_PREFIX", "🤖 *butler:*")
 WHATSAPP_API_URL = os.getenv("WHATSAPP_API_URL")
+WHATSAPP_QR_URL = os.getenv("WHATSAPP_QR_URL")
 WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY")
 
 @asynccontextmanager
@@ -63,7 +64,7 @@ async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
         has_media = message.get("hasMedia", False)
         media_type = message.get("mediaType", None)
         media_info = message.get("mediaInfo", None)
-        
+
         # If there's no text content but there's media, inform about the media
         if not content and has_media:
             if media_info:
@@ -95,7 +96,7 @@ async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
                     content = f"{content} [Image attached]"
                 else:
                     content = f"{content} [Media attached: {media_type}]"
-            
+
         if not content:
             return JSONResponse(
                 status_code=200,
@@ -120,7 +121,7 @@ async def process_message(message: Dict[str, Any]) -> Dict[str, Any]:
                 status_code=200,
                 content={"status": "success"}
             )
-        
+
         logger.info(f"Processing message from {sender} in chat {chat_id}")
 
         # Use runner from app.state
@@ -180,7 +181,19 @@ async def connect_page():
 
 @app.get("/status")
 async def get_status(request: Request):
-    return JSONResponse({"connected": request.app.state.is_connected})
+    return JSONResponse({"connected": WHATSAPP_API_KEY})
+
+@app.get("/qrcode")
+async def get_qrcode():
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(WHATSAPP_QR_URL)
+            if r.status_code == 200:
+                return Response(content=r.content, media_type="image/png")
+            return Response(content="QR not found", status_code=404)
+    except Exception as e:
+        print("QR proxy error:", e)
+        return Response(content="QR proxy failed", status_code=500)
 
 @app.post("/set-connected")
 async def set_connected(request: Request):
@@ -192,7 +205,7 @@ if __name__ == "__main__":
     import uvicorn
 
     # Get port from environment variable or use default
-    port = int(os.getenv("WEBHOOK_PORT", "8000"))
+    port = int(os.getenv("WEBHOOK_PORT", "8080"))
 
     # Run the server
     uvicorn.run(

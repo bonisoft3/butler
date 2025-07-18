@@ -6,9 +6,7 @@ import path from 'path';
 import axios from 'axios';
 import qrcodepng from 'qrcode';
 import { createCanvas } from 'canvas';
-import express, { Request, Response } from 'express';
 import { WhatsAppService } from './whatsapp-service';
-
 const QUERY_PREFIX = process.env.QUERY_PREFIX || '🤖 *butler:*';
 
 // Configuration interface
@@ -31,11 +29,36 @@ interface WebhookConfig {
 }
 
 function loadWebhookConfig(dataPath: string): WebhookConfig | undefined {
-  const webhookConfigPath = path.join(dataPath, 'webhook.json');
-  if (!fs.existsSync(webhookConfigPath)) {
-    return undefined;
+  const environment = process.env.ENVIRONMENT || 'local';
+  const webhookConfigPath = path.join(dataPath, `webhook.${environment}.json`);
+
+  // Check if file exists first
+  if (fs.existsSync(webhookConfigPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(webhookConfigPath, 'utf8'));
+    } catch (error) {
+      console.error(`Error reading webhook config file: ${error}`);
+    }
   }
-  return JSON.parse(fs.readFileSync(webhookConfigPath, 'utf8'));
+  if (environment === 'local' || environment === 'development') {
+    return {
+      "url": "http://webhook:8080/webhook",
+      "filters": {
+        "allowPrivate": false,
+        "allowGroups": false,
+        "allowSelfChat": true
+      }
+    };
+  } else {
+    return {
+      "url": "http://localhost:8080/webhook",
+      "filters": {
+        "allowPrivate": false,
+        "allowGroups": false,
+        "allowSelfChat": true
+      }
+    };
+  }
 }
 
 function shouldSkipMessageByFilters(
@@ -95,33 +118,82 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
     // Ignore if file doesn't exist
   }
 
-  const npx_args = { headless: true };
-  const docker_args = {
-    headless: true,
-    userDataDir: authDataPath,
-    args: ['--no-sandbox', '--single-process', '--no-zygote'],
-  };
 
-  const authStrategy =
-    config.authStrategy === 'local' && !config.dockerContainer
-      ? new LocalAuth({
-          dataPath: authDataPath,
-        })
-      : new NoAuth();
+  const commonArgs = [
+    "--disable-accelerated-2d-canvas",
+    "--disable-background-timer-throttling",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-breakpad",
+    "--disable-cache",
+    "--disable-component-extensions-with-background-pages",
+    "--disable-crash-reporter",
+    "--disable-dev-shm-usage",
+    "--disable-extensions",
+    "--disable-gpu",
+    "--disable-hang-monitor",
+    "--disable-ipc-flooding-protection",
+    "--disable-mojo-local-storage",
+    "--disable-notifications",
+    "--disable-popup-blocking",
+    "--disable-print-preview",
+    "--disable-prompt-on-repost",
+    "--disable-renderer-backgrounding",
+    "--disable-software-rasterizer",
+    "--ignore-certificate-errors",
+    "--log-level=3",
+    "--no-default-browser-check",
+    "--no-first-run",
+    "--no-sandbox",
+    "--no-zygote",
+    "'--enable-logging",
+    "--renderer-process-limit=100",
+    "--enable-gpu-rasterization",
+    "--enable-zero-copy",
+    "--unlimited-storage",
+    "--disable-storage-reset",
+    "--allow-file-access",
+    "--user-data-dir=/tmp/chrome-profile",
+    "--disable-web-security",
+    "--disable-features=IsolateOrigins,site-per-process"
+  ];
 
-  const puppeteer = config.dockerContainer ? docker_args : npx_args;
+  let puppeteer: any;
+
+  const environment = process.env.ENVIRONMENT || 'development';
+
+  let authStrategy: any;
+  if (environment === 'production') {
+    authStrategy = new LocalAuth({ dataPath: authDataPath });
+
+    puppeteer = {
+      headless: true,
+      executablePath: '/usr/bin/chromium',
+      args: commonArgs,
+    };
+  } else if (config.authStrategy === 'local' && !config.dockerContainer) {
+    authStrategy = new LocalAuth({ dataPath: authDataPath });
+
+    puppeteer = {
+      headless: true,
+      userDataDir: authDataPath,
+      args: commonArgs,
+    };
+  } else {
+    authStrategy = new NoAuth();
+
+    puppeteer = {
+      headless: true,
+      args: commonArgs,
+    };
+  }
 
   const client = new Client({
     puppeteer,
     authStrategy,
     restartOnAuthFail: true,
   });
-
   // Create WhatsApp service instance for media operations
   let whatsappService: WhatsAppService;
-
-  // Generate QR code when needed
-  let qrCodeServerStarted = false;
 
   client.on('qr', async (qr: string) => {
     qrcode.generate(qr, { small: true });
@@ -134,42 +206,32 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
     const imagePath = path.join(__dirname, 'qrcode.png');
     fs.writeFileSync(imagePath, buffer);
 
-
-    if (qrCodeServerStarted) return;
-
-    const app = express();
-    const PORT = 3005;
-
-    app.get('/qrcode', (_req: Request, res: Response) => {
-      if (fs.existsSync(imagePath)) {
-                res.sendFile(path.resolve(imagePath));
-            } else {
-                res.status(404).send('QR code not found');
-            }
-      });
-
-    app.listen(PORT, () => {
-      console.log(`QR code server at http://localhost:${PORT}/qrcode`);
-    });
-
-    qrCodeServerStarted = true;
   });
 
   // Handle ready event
   client.on('ready', async () => {
+    const maxRetries = 10;
+  for (let i = 0; i < maxRetries; i++) {
     try {
-      await fetch('http://host.docker.internal:8000/set-connected', {
+      const res = await fetch('http://localhost:8080/set-connected', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connected: true }),
       });
-      logger.info('Client is ready!');
-      whatsappService = new WhatsAppService(client);
-    } catch (error) {
-      logger.error('Failed to notify connection to server:', error);
+      if (res.ok) {
+        console.log('Webhook notified successfully');
+        return;
+      }
+    } catch (err) {
+      console.log(`Webhook not ready yet (attempt ${i + 1})...`);
     }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  console.error('Failed to notify webhook after retries');
   });
-
+  client.on('error', (error) => {
+    console.error('Error occurred:', error);
+  });
   // Handle authenticated event
   client.on('authenticated', () => {
     logger.info('Authentication successful!');
@@ -188,7 +250,7 @@ export function createWhatsAppClient(config: WhatsAppConfig = {}): Client {
   // Handle disconnected event
   client.on('disconnected', (reason: string) => {
     try {
-    fetch('http://host.docker.internal:8000/set-connected', {
+    fetch('http://localhost:8080/set-connected', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ connected: false }),

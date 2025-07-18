@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -54,7 +53,7 @@ if [ -d "whatsapp-session-data" ]; then
 fi
 
 mkdir -p whatsapp-session-data
-cp webhook.json ./whatsapp-session-data
+cp webhook.local.json ./whatsapp-session-data
 
 # Step 2: Start WhatsApp API service to generate session data
 print_message "\nStep 2: Starting WhatsApp API service..." "$YELLOW"
@@ -97,4 +96,3 @@ docker compose down
 
 print_message "\nSetup completed successfully!" "$GREEN"
 print_message "Now you can startup Butler by running 'make up' and scan the QR code with your phone." "$YELLOW"
-

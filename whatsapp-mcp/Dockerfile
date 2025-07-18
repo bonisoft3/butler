@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # npm ERR! The chromium binary is not available for arm64.
 # https://github.com/puppeteer/puppeteer/issues/7740
 
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 RUN apt-get update && \
@@ -18,15 +18,21 @@ RUN apt-get update && \
 
 WORKDIR /project
 
-# Copy all necessary files first
 COPY package*.json tsconfig.json ./
 COPY src/ ./src/
 
-# Then install and build
 RUN npm install
 RUN npm run build
 
 ENV DOCKER_CONTAINER=true
+
+RUN mkdir -p /session-data
+
+COPY ./scripts/webhook.production.json /project/session-data/webhook.production.json
+
+RUN chown -R node:node /project/session-data
+
+EXPOSE 3001
 
 ENTRYPOINT ["node", "dist/main.js"]
 

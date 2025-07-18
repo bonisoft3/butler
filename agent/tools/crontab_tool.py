@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get webhook URL from environment variable with fallback
-WEBHOOK_URL = os.getenv("WHATSAPP_WEBHOOK_URL", "http://localhost:80/webhook")
+WEBHOOK_URL = os.getenv("WHATSAPP_WEBHOOK_URL", "http://localhost:8080/webhook")
 COMMENT_PREFIX = "AGENT_SCHEDULED_MSG:"
 QUERY_PREFIX = os.getenv("QUERY_PREFIX", "/query ")
 
@@ -87,7 +87,7 @@ def schedule_task(cron_expression: str, message: str, tool_context: ToolContext)
         cron = CronTab(user=True)
         job = cron.new(command=command, comment=f"{COMMENT_PREFIX}{message}")
         job.setall(cron_expression)
-        
+
         if not job.is_valid():
             error_msg = f"Invalid cron expression: {cron_expression}"
             logger.error(error_msg)
@@ -96,7 +96,7 @@ def schedule_task(cron_expression: str, message: str, tool_context: ToolContext)
                 "error_message": error_msg,
                 "result": False
             }
-            
+
         cron.write()
         logger.info(f"Scheduled: '{message}' with schedule: '{cron_expression}'")
         return {
@@ -146,11 +146,11 @@ def remove_task(message_identifier: str) -> Dict[str, Any]:
     try:
         cron = CronTab(user=True)
         removed_count = 0
-        for job in list(cron): 
+        for job in list(cron):
             if job.comment == f"{COMMENT_PREFIX}{message_identifier}":
                 cron.remove(job)
                 removed_count += 1
-        
+
         if removed_count > 0:
             cron.write()
             logger.info(f"Successfully removed {removed_count} task(s) matching: '{message_identifier}'")
@@ -197,7 +197,7 @@ def list_tasks() -> Dict[str, Any]:
         cron = CronTab(user=True)
         scheduled_tasks = []
         task_number = 1
-        
+
         for job in cron:
             if job.comment.startswith(COMMENT_PREFIX):
                 message = job.comment[len(COMMENT_PREFIX):]
@@ -215,7 +215,7 @@ def list_tasks() -> Dict[str, Any]:
                 task_info = f"{task_number}. Message: '{message}', Schedule: '{cron_expression}', When: '{description}'"
                 scheduled_tasks.append(task_info)
                 task_number += 1
-        
+
         if not scheduled_tasks:
             logger.info("No tasks scheduled by this agent.")
             return {
@@ -253,36 +253,36 @@ def list_tasks() -> Dict[str, Any]:
 if __name__ == '__main__':
     # For testing purposes
     logger.info(f"Webhook URL: {WEBHOOK_URL}")
-    
+
     # Example usage (uncomment to test, be careful with your crontab)
     if validate_webhook_url(WEBHOOK_URL):
         test_cron_expr = "*/1 * * * *" # Every minute for testing
         test_message = "Test task for listing"
-        
+
         logger.info("\n--- Testing schedule_task ---")
         schedule_result = schedule_task(test_cron_expr, test_message, "test_user")
         if schedule_result["status"] == "success" and schedule_result["result"]:
             logger.info(f"Scheduled: '{test_message}'")
-            
+
             logger.info("\n--- Testing list_tasks (after schedule) ---")
             list_result = list_tasks()
             if list_result["status"] == "success":
                 for task in list_result["result"]:
                     logger.info(task)
-            
+
             logger.info("\n--- Testing remove_task ---")
             remove_result = remove_task(test_message)
             if remove_result["status"] == "success" and remove_result["result"]:
                 logger.info(f"Removed: '{test_message}'")
             else:
                 logger.info(f"Could not remove or find task: '{test_message}'")
-            
+
             logger.info("\n--- Testing list_tasks (after remove) ---")
             list_result = list_tasks()
             if list_result["status"] == "success":
                 for task in list_result["result"]:
                     logger.info(task)
-            
+
         else:
             logger.error(f"Failed to schedule test task: '{test_message}'")
             if schedule_result["error_message"]:
